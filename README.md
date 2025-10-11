@@ -1,5 +1,14 @@
-# Read steamdb.json
+# Read Steam DB
 
-This is a Go program that reads data from [steamdb.json](https://github.com/leinstay/steamdb/blob/main/steamdb.json), a file that contains data for all games on steam. As of writing, file was last updated on Nov 18, 2022.
+The goal of this program is to dynamically obtain all steam games and corresponding tags. This data will be used to generate an excel file with an adjacency matrix between games and their tags.
 
-To run, make sure `steamdb.json` is in the same folder as this file. Then, enter `go run main.go` in your command line.
+## Guide
+
+<!-- TODO -->
+
+## Resources
+
+-   [xPaw's Steam API Docs](https://steamapi.xpaw.me/)
+    -   https://steamapi.xpaw.me/#IStoreService/GetAppList
+-   steampowered.com
+    -   Obtain API Key [here](https://steamcommunity.com/login/home/?goto=%2Fdev%2Fapikey).

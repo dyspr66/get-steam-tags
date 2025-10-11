@@ -3,67 +3,84 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
 	"os"
-	"strings"
 
-	"github.com/xuri/excelize/v2"
+	"github.com/joho/godotenv"
 )
 
-type Record struct {
-	ID         int    `json:"sid"`
-	Name       string `json:"name"`
-	Categories string `json:"tags"`
-}
+var rs readSteamDB
 
 func main() {
-	// Read file to get game records
-	data, err := os.ReadFile("steamdb.json")
+	initialize()
+
+	getIDsForAllGames()
+
+	// var tagToCol map[string]string // maps a tag to its column id
+	// var currentMaxCol string       // track last added column
+	// var currentMaxRow string       // track last edded row
+
+	for _, game := range rs.AllGames.Response.Apps {
+		fmt.Println("Finding tags for", game.AppID, ":", game.Name)
+		// TODO
+	}
+
+}
+
+func initialize() {
+	err := godotenv.Load()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal("loading env: ", err)
 	}
 
-	var records []Record
-	err = json.Unmarshal(data, &records)
+	rs.SteamWebAPIKey = os.Getenv("STEAM_WEB_API_KEY")
+}
+
+func getIDsForAllGames() {
+	url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=true&max_results=50000&key=%s", rs.SteamWebAPIKey)
+	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal("getting data: ", err)
 	}
 
-	// Make excel sheet
-	main_sheet := "Sheet1"
-	column_game_name := "A"
-	column_game_id := "B"
-	column_game_tags := "C"
-
-	f := excelize.NewFile()
-	f.NewSheet(main_sheet)
-
-	defer func() {
-		if err := f.Close(); err != nil {
-			fmt.Println(err)
-		}
-	}()
-
-	// Place records into file
-	row := 0
-	for i, record := range records {
-		fmt.Printf("Reading %dth record: %s\n", i, record.Name)
-
-		tags := strings.Split(record.Categories, ",")
-		for _, tag := range tags {
-			game_name_cell := fmt.Sprintf("%s%d", column_game_name, row)
-			game_id_cell := fmt.Sprintf("%s%d", column_game_id, row)
-			game_tag_cell := fmt.Sprintf("%s%d", column_game_tags, row)
-
-			f.SetCellValue(main_sheet, game_name_cell, record.Name)
-			f.SetCellValue(main_sheet, game_id_cell, record.ID)
-			f.SetCellValue(main_sheet, game_tag_cell, tag)
-
-			row += 1 // go to next row for next tag
-		}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal("reading response body: ", err)
 	}
 
-	// Save file as "all_steam_games_data.xlsx"
-	if err := f.SaveAs("all_steam_games_data.xlsx"); err != nil {
-		fmt.Println(err)
+	var base GetAppList
+	json.Unmarshal(body, &base)
+	if err != nil {
+		log.Fatal("unmarshaling body", err)
+	}
+	resp.Body.Close()
+
+	rs.AllGames.Response.Apps = append(rs.AllGames.Response.Apps, base.Response.Apps...)
+	fmt.Println("Sucessfully obtained all games up to ID", base.Response.LastAppID)
+
+	for base.Response.HaveMoreResults {
+		url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=true&last_appid=%d&max_results=50000&key=%s", base.Response.LastAppID, rs.SteamWebAPIKey)
+		resp, err := http.Get(url)
+		if err != nil {
+			log.Fatal("getting data: ", err)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal("reading response body: ", err)
+		}
+
+		var r GetAppList
+		json.Unmarshal(body, &r)
+		if err != nil {
+			log.Fatal("unmarshaling body", err)
+		}
+		resp.Body.Close()
+
+		base = r
+		rs.AllGames.Response.Apps = append(rs.AllGames.Response.Apps, base.Response.Apps...)
+		fmt.Println("Sucessfully obtained all games up to ID", base.Response.LastAppID)
 	}
 }

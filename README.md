@@ -12,3 +12,5 @@ The goal of this program is to dynamically obtain all steam games and correspond
     -   https://steamapi.xpaw.me/#IStoreService/GetAppList
 -   steampowered.com
     -   Obtain API Key [here](https://steamcommunity.com/login/home/?goto=%2Fdev%2Fapikey).
+-   SteamSpy
+    -   https://steamspy.com/api.php?request=appdetails&appid=APP_ID_HERE

@@ -1,86 +1,87 @@
+/*
+main.go contains functions related to generating the adjacency matrix.
+*/
+
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"os"
-
-	"github.com/joho/godotenv"
+	"log/slog"
 )
 
 var rs readSteamDB
 
 func main() {
-	initialize()
+	slog.Info("Starting program...")
 
-	getIDsForAllGames()
+	err := initialize()
+	if err != nil {
+		slog.Error("Initializing", "err", err)
+		return
+	}
+
+	err = getIDsForAllGames()
+	if err != nil {
+		slog.Error("Getting all game IDs", "err", err)
+		return
+	}
 
 	// var tagToCol map[string]string // maps a tag to its column id
 	// var currentMaxCol string       // track last added column
 	// var currentMaxRow string       // track last edded row
 
 	for _, game := range rs.AllGames.Response.Apps {
-		fmt.Println("Finding tags for", game.AppID, ":", game.Name)
-		// TODO
-	}
+		var steamSpyResponse SteamSpy
+		err := getTagsForGame(game, &steamSpyResponse)
+		if err != nil {
+			slog.Error("Getting tags for game", "id", game.AppID, "name", game.Name, "err", err)
+			return
+		}
 
+		// for tag, _ := range steamSpyResponse.Tags {
+		// }
+
+		slog.Info("Obtained tags for game", "id", game.AppID, "name", game.Name)
+	}
 }
 
-func initialize() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("loading env: ", err)
-	}
-
-	rs.SteamWebAPIKey = os.Getenv("STEAM_WEB_API_KEY")
-}
-
-func getIDsForAllGames() {
+func getIDsForAllGames() error {
 	url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=true&max_results=50000&key=%s", rs.SteamWebAPIKey)
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Fatal("getting data: ", err)
-	}
+	var base GetAppListResponse
 
-	body, err := io.ReadAll(resp.Body)
+	err := unmarshalJsonApiData(url, &base)
 	if err != nil {
-		log.Fatal("reading response body: ", err)
+		return fmt.Errorf("getting id for all games: %w", err)
 	}
-
-	var base GetAppList
-	json.Unmarshal(body, &base)
-	if err != nil {
-		log.Fatal("unmarshaling body", err)
-	}
-	resp.Body.Close()
 
 	rs.AllGames.Response.Apps = append(rs.AllGames.Response.Apps, base.Response.Apps...)
-	fmt.Println("Sucessfully obtained all games up to ID", base.Response.LastAppID)
+	slog.Info("Sucessfully obtained all games up to a certain ID", "last obtained ID", base.Response.LastAppID)
 
-	for base.Response.HaveMoreResults {
-		url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=true&last_appid=%d&max_results=50000&key=%s", base.Response.LastAppID, rs.SteamWebAPIKey)
-		resp, err := http.Get(url)
-		if err != nil {
-			log.Fatal("getting data: ", err)
-		}
+	// for base.Response.HaveMoreResults {
+	// 	url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=true&last_appid=%d&max_results=50000&key=%s", base.Response.LastAppID, rs.SteamWebAPIKey)
 
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal("reading response body: ", err)
-		}
+	// 	var r GetAppList
+	// 	err := unmarshalJsonApiData(url, &r)
+	// 	if err != nil {
+	// 		return fmt.Errorf("getting id for all games: %w", err)
+	// 	}
 
-		var r GetAppList
-		json.Unmarshal(body, &r)
-		if err != nil {
-			log.Fatal("unmarshaling body", err)
-		}
-		resp.Body.Close()
+	// 	base = r
 
-		base = r
-		rs.AllGames.Response.Apps = append(rs.AllGames.Response.Apps, base.Response.Apps...)
-		fmt.Println("Sucessfully obtained all games up to ID", base.Response.LastAppID)
+	// 	rs.AllGames.Response.Apps = append(rs.AllGames.Response.Apps, base.Response.Apps...)
+	// 	slog.Info("Sucessfully obtained all games up to a certain ID", "last obtained ID", base.Response.LastAppID)
+	// }
+
+	return nil
+}
+
+func getTagsForGame(game App, tags *SteamSpy) error {
+	url := fmt.Sprintf("https://steamspy.com/api.php?request=appdetails&appid=%d", game.AppID)
+
+	err := unmarshalJsonApiData(url, tags)
+	if err != nil {
+		return fmt.Errorf("getting tags for game: %w", err)
 	}
+
+	return nil
 }

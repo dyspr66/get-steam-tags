@@ -2,11 +2,11 @@ package main
 
 type readSteamDB struct {
 	SteamWebAPIKey string
-	AllGames       GetAppList
+	AllGames       GetAppListResponse
 }
 
-// Models the JSON data obtained from https://api.steampowered.com/IStoreService/GetAppList/v1/
-type GetAppList struct {
+// Models the JSON data obtained from https://api.steampowered.com/IStoreService/GetAppListResponse/v1/
+type GetAppListResponse struct {
 	Response response `json:"response"`
 }
 
@@ -23,4 +23,8 @@ type AppList struct {
 type App struct {
 	AppID int    `json:"appid"`
 	Name  string `json:"name"`
+}
+
+type SteamSpy struct {
+	Tags map[string]int `json:"tags"`
 }

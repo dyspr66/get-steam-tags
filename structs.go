@@ -25,6 +25,6 @@ type App struct {
 	Name  string `json:"name"`
 }
 
-type SteamSpy struct {
+type SteamSpyResponse struct {
 	Tags map[string]int `json:"tags"`
 }

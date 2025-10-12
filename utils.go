@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -47,4 +48,33 @@ func unmarshalJsonApiData(url string, v any) error {
 	resp.Body.Close()
 
 	return nil
+}
+
+func excelToNumber(col string) int {
+	result := 0
+	for i := 0; i < len(col); i++ {
+		result = result*26 + int(col[i]-'A'+1)
+	}
+	return result
+}
+
+func numberToExcel(num int) string {
+	var result strings.Builder
+	for num > 0 {
+		num--
+		result.WriteByte(byte(num%26 + 'A'))
+		num /= 26
+	}
+
+	runes := []rune(result.String())
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
+}
+
+func getNextColumn(column string) string {
+	columnNumber := excelToNumber(column)
+	nextColumnNumber := columnNumber + 1
+	return numberToExcel(nextColumnNumber)
 }

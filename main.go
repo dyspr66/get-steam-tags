@@ -44,7 +44,7 @@ func main() {
 	tagToCol := make(map[string]string) // maps a tag to its column id
 
 	// Go through each game and record their tags
-	for _, game := range rs.AllGames.Response.Apps {
+	for i, game := range rs.AllGames.Response.Apps {
 		// Add game as new row
 		cell := fmt.Sprintf("A%d", currentMaxRow)
 		f.SetCellValue(mainSheet, cell, game.Name)
@@ -80,7 +80,7 @@ func main() {
 		}
 
 		currentMaxRow += 1 // Shift to next game
-		slog.Info("Obtained tags for game", "id", game.AppID, "name", game.Name)
+		slog.Info("Obtained tags for game", "count", i, "id", game.AppID, "name", game.Name)
 	}
 
 	if err := f.SaveAs("game_tags_adjacency_matrix.xlsx"); err != nil {

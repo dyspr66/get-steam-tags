@@ -1,5 +1,11 @@
 package main
 
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
+
 type readSteamDB struct {
 	SteamWebAPIKey string
 	AllGames       GetAppListResponse
@@ -27,4 +33,24 @@ type App struct {
 
 type SteamSpyResponse struct {
 	Tags map[string]int `json:"tags"`
+}
+
+func (s *SteamSpyResponse) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Tags map[string]int `json:"tags"`
+	}
+
+	err := json.Unmarshal(data, &temp)
+
+	s.Tags = temp.Tags
+
+	if err != nil && strings.Contains(err.Error(), "cannot unmarshal array") {
+		return nil
+	}
+
+	if err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("unmarshaling SteamSpyResponse: %w", err)
 }

@@ -54,7 +54,10 @@ func main() {
 		err := getTagsForGame(game, &steamSpyResponse)
 		if err != nil {
 			slog.Error("Getting tags for game", "id", game.AppID, "name", game.Name, "err", err)
-			return
+
+			// Comment out the return if the whole program shouldn't
+			// stop if an error with tags is detected:
+			// return
 		}
 
 		for tag := range steamSpyResponse.Tags {
@@ -92,7 +95,7 @@ func main() {
 }
 
 func getIDsForAllGames() error {
-	url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=true&max_results=50000&key=%s", rs.SteamWebAPIKey)
+	url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=false&include_software=false&include_videos=false&include_hardware=false&max_results=50000&key=%s", rs.SteamWebAPIKey)
 	var base GetAppListResponse
 
 	err := unmarshalJsonApiData(url, &base)
@@ -104,7 +107,7 @@ func getIDsForAllGames() error {
 	slog.Info("Obtained all games up to a certain ID", "last obtained ID", base.Response.LastAppID)
 
 	for base.Response.HaveMoreResults {
-		url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=true&last_appid=%d&max_results=50000&key=%s", base.Response.LastAppID, rs.SteamWebAPIKey)
+		url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=false&include_software=false&include_videos=false&include_hardware=false&max_results=50000&last_appid=%d&key=%s", base.Response.LastAppID, rs.SteamWebAPIKey)
 
 		var r GetAppListResponse
 		err := unmarshalJsonApiData(url, &r)

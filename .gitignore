@@ -2,3 +2,4 @@
 *.xlsx
 log.txt
 .DS_Store
+.vscode

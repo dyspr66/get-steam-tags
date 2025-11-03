@@ -68,18 +68,17 @@ func main() {
 		f.SetCellValue(mainSheet, cell, game.Name)
 
 		// Process game's tags
-		var steamSpyResponse SteamSpyResponse
-		err := getTagsForGame(game, &steamSpyResponse)
+		tags, err := scrapeUserTags(fmt.Sprintf("https://store.steampowered.com/app/%d/", game.AppID))
 		if err != nil {
 			slog.Error("Getting tags for game", "id", game.AppID, "name", game.Name, "err", err)
 			fmt.Println(time.Now(), "Getting tags for game", "id", game.AppID, "name", game.Name, "err", err)
 
-			// Comment out the return if the whole program shouldn't
-			// stop if an error with tags is detected:
-			// return
+			// NOTE - Comment out the "return" if the whole program
+			// should stop when tag scrape error is detected:
+			return
 		}
 
-		for tag := range steamSpyResponse.Tags {
+		for _, tag := range tags {
 			_, tagExists := tagToCol[tag]
 			if tagExists {
 				tagColumn := tagToCol[tag] // Get column for existing tag

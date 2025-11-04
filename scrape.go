@@ -13,14 +13,14 @@ import (
 )
 
 func scrapeUserTags(gameUrl string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
 
 	var tags string
 	err := chromedp.Run(ctx,
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			// TODO - Set cookies for age verification
+			// Set cookies for age verification
 			expr := cdp.TimeSinceEpoch(time.Now().Add(180 * 24 * time.Hour))
 
 			cookies := make(map[string]string)
@@ -63,7 +63,7 @@ func scrapeUserTags(gameUrl string) ([]string, error) {
 // scrapeMetadata scrapes release date, total review count,
 // and review positivity
 func scrapeMetadata(gameUrl string) (string, string, string, error) { // TODO - Make a game struct for all this data
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
 
@@ -71,7 +71,30 @@ func scrapeMetadata(gameUrl string) (string, string, string, error) { // TODO - 
 	var totalReviewCount string
 	var reviewPositivity string
 	err := chromedp.Run(ctx,
-		// Go to URL for game and get release date
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			// Set cookies for age verification
+			expr := cdp.TimeSinceEpoch(time.Now().Add(180 * 24 * time.Hour))
+
+			cookies := make(map[string]string)
+			cookies["birthtime"] = "946706401"
+			cookies["lastagecheckage"] = "1-January-2000"
+
+			for k, v := range cookies {
+				err := network.SetCookie(k, v).
+					WithExpires(&expr).
+					WithDomain("store.steampowered.com").
+					WithHTTPOnly(true).
+					Do(ctx)
+
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}),
+
+		// Go to URL for game and get metadata
 		chromedp.Navigate(gameUrl),
 		chromedp.Text(`div.release_date div.date`, &releaseDate, chromedp.NodeVisible),
 		chromedp.Text(`div.summary_text span.app_reviews_count`, &totalReviewCount, chromedp.NodeVisible),

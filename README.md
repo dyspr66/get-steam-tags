@@ -23,6 +23,11 @@ STEAM_WEB_API_KEY=ABCDE12345
 
 3. Finally, run `go run .` This will start the program. As of writing, it takes an estimated 6-9 hours to run. You should see logs of what's been done in your terminal.
 
+## Note
+
+The columns will be structured in the following order from left to right:
+Game Title -> Date/Time Scraped -> Release Date -> Total Review Count -> Review Positivity -> Tags
+
 ## Resources
 
 -   [xPaw's Steam API Docs](https://steamapi.xpaw.me/)

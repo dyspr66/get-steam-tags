@@ -28,7 +28,7 @@ type AppList struct {
 
 type App struct {
 	AppID int    `json:"appid"`
-	Name  string `json:"name"`
+	Title string `json:"name"`
 }
 
 type SteamSpyResponse struct {

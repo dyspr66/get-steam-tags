@@ -29,19 +29,19 @@ func main() {
 
 	// Actually start the program
 	slog.Info("Starting program...")
-	fmt.Println(time.Now(), "Starting program...")
+	fmt.Println(time.Now(), "INFO: Starting program...") // TODO - Have 2 slog outputs instead of this
 
 	err = initialize()
 	if err != nil {
 		slog.Error("Initializing", "err", err)
-		fmt.Println(time.Now(), "Initializing", "err", err)
+		fmt.Println(time.Now(), "ERROR: Initializing:", "err =", err)
 		return
 	}
 
 	err = getIDsForAllGames()
 	if err != nil {
 		slog.Error("Getting all game IDs", "err", err)
-		fmt.Println(time.Now(), "Getting all game IDs", "err", err)
+		fmt.Println(time.Now(), "ERROR: Getting all game IDs:", "err =", err)
 		return
 	}
 
@@ -50,32 +50,58 @@ func main() {
 	defer func() {
 		if err := f.Close(); err != nil {
 			slog.Error("Closing excel file", "err", err)
-			fmt.Println(time.Now(), "Closing excel file", "err", err)
+			fmt.Println(time.Now(), "ERROR: Closing excel file:", "err =", err)
 			return
 		}
 	}()
 
 	mainSheet := "Sheet1" // name of sheet data is stored in
 	currentMaxRow := 2    // track last edded row
-	currentMaxCol := "B"  // track last added column
+	currentMaxCol := "F"  // track last added column
+
+	// Set default column titles
+	f.SetCellValue(mainSheet, "A1", "Title")
+	f.SetCellValue(mainSheet, "B1", "Scraped On")
+	f.SetCellValue(mainSheet, "C1", "Release Date")
+	f.SetCellValue(mainSheet, "D1", "Total Review Count")
+	f.SetCellValue(mainSheet, "E1", "Review Positivity")
 
 	tagToCol := make(map[string]string) // maps a tag to its column id
 
 	// Go through each game and record their tags
 	for i, game := range rs.AllGames.Response.Apps {
-		// Add game as new row
-		cell := fmt.Sprintf("A%d", currentMaxRow)
-		f.SetCellValue(mainSheet, cell, game.Name)
+		url := fmt.Sprintf("https://store.steampowered.com/app/%d/", game.AppID)
 
-		// Process game's tags
-		tags, err := scrapeUserTags(fmt.Sprintf("https://store.steampowered.com/app/%d/", game.AppID))
+		// Get time scraped
+		scrapedOn := time.Now()
+
+		// Get metadata
+		releaseDate, totalReviewCount, reviewPositivity, err := scrapeMetadata(url)
 		if err != nil {
-			slog.Error("Getting tags for game", "id", game.AppID, "name", game.Name, "err", err)
-			fmt.Println(time.Now(), "Getting tags for game", "id", game.AppID, "name", game.Name, "err", err)
+			slog.Error("Getting metadata for game", "id", game.AppID, "title", game.Title, "err", err)
+			fmt.Println(time.Now(), "ERROR: Getting metadata for game:", "id =", game.AppID, "title =", game.Title, "err =", err)
 
 			// NOTE - Comment out the "return" if the whole program
 			// should stop when tag scrape error is detected:
-			return
+			// return
+		}
+
+		// Set title, time scraped, and metadata
+		f.SetCellValue(mainSheet, fmt.Sprintf("A%d", currentMaxRow), game.Title)
+		f.SetCellValue(mainSheet, fmt.Sprintf("B%d", currentMaxRow), scrapedOn)
+		f.SetCellValue(mainSheet, fmt.Sprintf("C%d", currentMaxRow), releaseDate)
+		f.SetCellValue(mainSheet, fmt.Sprintf("D%d", currentMaxRow), totalReviewCount)
+		f.SetCellValue(mainSheet, fmt.Sprintf("E%d", currentMaxRow), reviewPositivity)
+
+		// Get and set tags
+		tags, err := scrapeUserTags(url)
+		if err != nil {
+			slog.Error("Getting tags for game", "id", game.AppID, "title", game.Title, "err", err)
+			fmt.Println(time.Now(), "ERROR: Getting tags for game:", "id =", game.AppID, "title =", game.Title, "err =", err)
+
+			// NOTE - Comment out the "return" if the whole program
+			// should stop when tag scrape error is detected:
+			// return
 		}
 
 		for _, tag := range tags {
@@ -101,18 +127,18 @@ func main() {
 		}
 
 		currentMaxRow += 1 // Shift to next game
-		slog.Info("Obtained tags for game", "count", i, "id", game.AppID, "name", game.Name)
-		fmt.Println(time.Now(), "Obtained tags for game", "count", i, "id", game.AppID, "name", game.Name)
+		slog.Info("Finished processing game", "count", i, "id", game.AppID, "title", game.Title)
+		fmt.Println(time.Now(), "INFO: Finished processing game:", "count =", i, "id =", game.AppID, "title =", game.Title)
 	}
 
 	if err := f.SaveAs("game_tags_adjacency_matrix.xlsx"); err != nil {
 		slog.Error("Saving excel file", "err", err)
-		fmt.Println(time.Now(), "Saving excel file", "err", err)
+		fmt.Println(time.Now(), "ERROR: Saving excel file:", "err =", err)
 		return
 	}
 
 	slog.Info("Program finished.")
-	fmt.Println(time.Now(), "Program finished.")
+	fmt.Println(time.Now(), "INFO: Program finished.")
 }
 
 func getIDsForAllGames() error {
@@ -126,7 +152,7 @@ func getIDsForAllGames() error {
 
 	rs.AllGames.Response.Apps = append(rs.AllGames.Response.Apps, base.Response.Apps...)
 	slog.Info("Obtained all games up to a certain ID", "last obtained ID", base.Response.LastAppID)
-	fmt.Println(time.Now(), "Obtained all games up to a certain ID", "last obtained ID", base.Response.LastAppID)
+	fmt.Println(time.Now(), "INFO: Obtained all games up to a certain ID:", "last obtained ID =", base.Response.LastAppID)
 
 	for base.Response.HaveMoreResults {
 		url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=false&include_software=false&include_videos=false&include_hardware=false&max_results=50000&last_appid=%d&key=%s", base.Response.LastAppID, rs.SteamWebAPIKey)
@@ -141,7 +167,7 @@ func getIDsForAllGames() error {
 
 		rs.AllGames.Response.Apps = append(rs.AllGames.Response.Apps, base.Response.Apps...)
 		slog.Info("Obtained all games up to a certain ID", "last obtained ID", base.Response.LastAppID)
-		fmt.Println(time.Now(), "Obtained all games up to a certain ID", "last obtained ID", base.Response.LastAppID)
+		fmt.Println(time.Now(), "INFO: Obtained all games up to a certain ID:", "last obtained ID =", base.Response.LastAppID)
 	}
 
 	return nil

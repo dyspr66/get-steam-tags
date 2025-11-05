@@ -126,6 +126,16 @@ func main() {
 			}
 		}
 
+		if i%100 == 0 { // Save every 100 records
+			slog.Info("Saving data:", "processed count =", i)
+			fmt.Println(time.Now(), "INFO: Saving data:", "processed count =", i)
+
+			if err := f.SaveAs("game_tags_adjacency_matrix.xlsx"); err != nil {
+				slog.Error("Saving excel file", "err", err)
+				fmt.Println(time.Now(), "ERROR: Saving excel file:", "err =", err)
+			}
+		}
+
 		currentMaxRow += 1 // Shift to next game
 		slog.Info("Finished processing game", "count", i, "id", game.AppID, "title", game.Title)
 		fmt.Println(time.Now(), "INFO: Finished processing game:", "count =", i, "id =", game.AppID, "title =", game.Title)

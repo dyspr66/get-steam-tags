@@ -12,8 +12,51 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
+func getIDsForAllGames() error {
+	url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=false&include_software=false&include_videos=false&include_hardware=false&max_results=50000&key=%s", rs.SteamWebAPIKey)
+	var base GetAppListResponse
+
+	err := unmarshalJsonApiData(url, &base)
+	if err != nil {
+		return fmt.Errorf("getting id for all games: %w", err)
+	}
+
+	rs.AllGames.Response.Apps = append(rs.AllGames.Response.Apps, base.Response.Apps...)
+	slog.Info("Obtained all games up to a certain ID", "last obtained ID", base.Response.LastAppID)
+
+	for base.Response.HaveMoreResults {
+		url := fmt.Sprintf("https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=false&include_software=false&include_videos=false&include_hardware=false&max_results=50000&last_appid=%d&key=%s", base.Response.LastAppID, rs.SteamWebAPIKey)
+
+		var r GetAppListResponse
+		err := unmarshalJsonApiData(url, &r)
+		if err != nil {
+			return fmt.Errorf("getting id for all games: %w", err)
+		}
+
+		base = r
+
+		rs.AllGames.Response.Apps = append(rs.AllGames.Response.Apps, base.Response.Apps...)
+		slog.Info("Obtained all games up to a certain ID", "last obtained ID", base.Response.LastAppID)
+	}
+
+	return nil
+}
+
+// getTagsForGame obtains game tags from steamspy.com
+func getTagsForGame(game App, tags *SteamSpyResponse) error {
+	url := fmt.Sprintf("https://steamspy.com/api.php?request=appdetails&appid=%d", game.AppID)
+
+	err := unmarshalJsonApiData(url, tags)
+	if err != nil {
+		return fmt.Errorf("getting tags for game: %w", err)
+	}
+
+	return nil
+}
+
 func scrapeUserTags(gameUrl string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
 
@@ -53,7 +96,7 @@ func scrapeUserTags(gameUrl string) ([]string, error) {
 	}
 
 	if tags == "" {
-		return nil, fmt.Errorf("no tags found.")
+		return nil, fmt.Errorf("no tags found")
 	}
 
 	tagSlice := strings.Split(tags, "\n")
@@ -63,7 +106,8 @@ func scrapeUserTags(gameUrl string) ([]string, error) {
 // scrapeMetadata scrapes release date, total review count,
 // and review positivity
 func scrapeMetadata(gameUrl string) (string, string, string, error) { // TODO - Make a game struct for all this data
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
 

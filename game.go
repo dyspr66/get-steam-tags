@@ -41,10 +41,11 @@ func (gs *Games) Update(key int, game Game) error {
 
 	// Update metadata
 	f.SetCellValue(mainSheet, fmt.Sprintf("A%d", gs.CurrentMaxRow), game.Title)
-	f.SetCellValue(mainSheet, fmt.Sprintf("B%d", gs.CurrentMaxRow), game.ScrapedOn)
-	f.SetCellValue(mainSheet, fmt.Sprintf("C%d", gs.CurrentMaxRow), game.ReleaseDate)
-	f.SetCellValue(mainSheet, fmt.Sprintf("D%d", gs.CurrentMaxRow), game.TotalReviewCount)
-	f.SetCellValue(mainSheet, fmt.Sprintf("E%d", gs.CurrentMaxRow), game.ReviewPositivity)
+	f.SetCellValue(mainSheet, fmt.Sprintf("B%d", gs.CurrentMaxRow), game.ID)
+	f.SetCellValue(mainSheet, fmt.Sprintf("C%d", gs.CurrentMaxRow), game.ScrapedOn)
+	f.SetCellValue(mainSheet, fmt.Sprintf("D%d", gs.CurrentMaxRow), game.ReleaseDate)
+	f.SetCellValue(mainSheet, fmt.Sprintf("E%d", gs.CurrentMaxRow), game.TotalReviewCount)
+	f.SetCellValue(mainSheet, fmt.Sprintf("F%d", gs.CurrentMaxRow), game.ReviewPositivity)
 
 	// Update tags
 	for _, tag := range game.Tags {
@@ -74,7 +75,7 @@ func (gs *Games) Update(key int, game Game) error {
 
 	// Save every n games
 	if gs.ProcessedGameCount%10 == 0 { // TODO
-		slog.Info("Saving progress", "games processed", gs.ProcessedGameCount, "last processed game id", game.ID, "last processed game title", game.Title)
+		slog.Info("Saving progress up to a certain game", "processed game count", gs.ProcessedGameCount, "id", game.ID, "title", game.Title)
 		if err := f.SaveAs("game_tags_adjacency_matrix.xlsx"); err != nil {
 			return fmt.Errorf("saving excel file: %w", err)
 		}
@@ -85,7 +86,8 @@ func (gs *Games) Update(key int, game Game) error {
 
 func (gs *Games) GetAndSetData(key int, title string, wg *sync.WaitGroup) {
 	defer wg.Done()
-	slog.Info("Getting data", "key", key)
+	hasNoScrapeError := true
+	slog.Info("Getting data", "id", key, "title", title)
 
 	// Get metadata
 	url := fmt.Sprintf("https://store.steampowered.com/app/%d/", key)
@@ -94,6 +96,7 @@ func (gs *Games) GetAndSetData(key int, title string, wg *sync.WaitGroup) {
 
 	releaseDate, totalReviewCount, reviewPositivity, err := scrapeMetadata(url)
 	if err != nil {
+		hasNoScrapeError = false
 		slog.Error("Getting metadata for game", "id", key, "title", title, "err", err)
 		// return // NOTE - uncomment if err should make break program
 	}
@@ -101,6 +104,7 @@ func (gs *Games) GetAndSetData(key int, title string, wg *sync.WaitGroup) {
 	// Get tags
 	tags, err := scrapeUserTags(url)
 	if err != nil {
+		hasNoScrapeError = false
 		slog.Error("Getting tags for game", "id", key, "title", title, "err", err)
 		// return // NOTE - uncomment if err should make break program
 	}
@@ -117,10 +121,14 @@ func (gs *Games) GetAndSetData(key int, title string, wg *sync.WaitGroup) {
 		Tags:             tags,
 	}
 
+	if hasNoScrapeError {
+		slog.Info("Obtained data", "id", game.ID, "title", game.Title)
+	}
+
 	err = gs.Update(key, game)
 	if err != nil {
-		slog.Warn("Updating data", "game id", game.ID, "game title", game.Title, "err", err)
+		slog.Warn("Saving data up to game", "id", game.ID, "title", game.Title, "err", err)
 	} else {
-		slog.Info("Obtained data", "key", key)
+		slog.Info("Saving data up to game", "id", game.ID, "title", game.Title)
 	}
 }

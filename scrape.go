@@ -55,7 +55,7 @@ func getTagsForGame(game App, tags *SteamSpyResponse) error {
 }
 
 func scrapeUserTags(gameUrl string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
@@ -106,7 +106,7 @@ func scrapeUserTags(gameUrl string) ([]string, error) {
 // scrapeMetadata scrapes release date, total review count,
 // and review positivity
 func scrapeMetadata(gameUrl string) (string, string, string, error) { // TODO - Make a game struct for all this data
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
@@ -150,13 +150,13 @@ func scrapeMetadata(gameUrl string) (string, string, string, error) { // TODO - 
 	}
 
 	if releaseDate == "" {
-		slog.Warn("No release date found", "url", gameUrl)
+		slog.Warn("No release date found", "gameUrl", gameUrl)
 	}
 	if totalReviewCount == "" {
-		slog.Warn("No total review count found", "url", gameUrl)
+		slog.Warn("No total review count found", "gameUrl", gameUrl)
 	}
 	if reviewPositivity == "" {
-		slog.Warn("No review positivity found", "url", gameUrl)
+		slog.Warn("No review positivity found", "gameUrl", gameUrl)
 	}
 
 	totalReviewCount = strings.TrimPrefix(totalReviewCount, "(")

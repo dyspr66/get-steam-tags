@@ -6,10 +6,8 @@ package main
 
 import (
 	"log/slog"
-	"math/rand"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -50,10 +48,11 @@ func main() {
 
 	// Set default excel column titles
 	f.SetCellValue(mainSheet, "A1", "Title")
-	f.SetCellValue(mainSheet, "B1", "Scraped On")
-	f.SetCellValue(mainSheet, "C1", "Release Date")
-	f.SetCellValue(mainSheet, "D1", "Total Review Count")
-	f.SetCellValue(mainSheet, "E1", "Review Positivity")
+	f.SetCellValue(mainSheet, "B1", "ID")
+	f.SetCellValue(mainSheet, "C1", "Scraped On")
+	f.SetCellValue(mainSheet, "D1", "Release Date")
+	f.SetCellValue(mainSheet, "E1", "Total Review Count")
+	f.SetCellValue(mainSheet, "F1", "Review Positivity")
 
 	// Get IDs of all steam games
 	err = getIDsForAllGames()
@@ -63,21 +62,23 @@ func main() {
 	}
 
 	games := Games{ProcessedGameCount: 0, TagToCol: make(map[string]string)}
-	games.CurrentMaxCol = "F"
+	games.CurrentMaxCol = "G"
 	games.CurrentMaxRow = 2
 
 	// Get and set data for each game
 	var wg sync.WaitGroup
 	wg.Add(len(rs.AllGames.Response.Apps))
+	maxConcurrentRequests := 4
+	limiter := make(chan struct{}, maxConcurrentRequests)
 
 	for i, game := range rs.AllGames.Response.Apps {
-		ms := 1000 + (rand.Intn(10) * 100)
+		limiter <- struct{}{}
 
-		slog.Info("Processing game", "game count", i, "sleep ms", ms)
-
-		// Sleep for "random" ms until next scrape
-		time.Sleep(time.Duration(ms) * time.Millisecond)
-		go games.GetAndSetData(game.AppID, game.Title, &wg)
+		go func() {
+			defer func() { <-limiter }()
+			slog.Info("Processing nth game", "n", i, "id", game.AppID, "title", game.Title)
+			games.GetAndSetData(game.AppID, game.Title, &wg)
+		}()
 	}
 
 	wg.Wait()
